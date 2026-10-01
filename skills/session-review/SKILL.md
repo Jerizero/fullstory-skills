@@ -20,13 +20,14 @@ Review Fullstory sessions to understand what happened — whether diagnosing a c
 The tools follow this pattern:
 
 ```
-fullstory:session_open  →  (fullstory:session_view | fullstory:session_diff)*  →  fullstory:session_close
+fullstory:session_open  →  (fullstory:session_screenshot | fullstory:session_get_a11y_tree | fullstory:session_diff)*  →  fullstory:session_close
 ```
 
 1. **`fullstory:session_open`**: Pass `session_url`. Returns event summaries and a `client_id`.
-2. **`fullstory:session_view`**: Screenshot + component tree at a timestamp. Sequential calls with increasing timestamps are faster.
-3. **`fullstory:session_diff`**: Highlights changes between two timestamps within a page.
-4. **`fullstory:session_close`**: Always call when done to free resources.
+2. **`fullstory:session_screenshot`**: Screenshot at a timestamp. Sequential calls with increasing timestamps are faster.
+3. **`fullstory:session_get_a11y_tree`**: Accessibility tree at a timestamp. Sequential calls with increasing timestamps are faster.
+4. **`fullstory:session_diff`**: Text summary of accessibility tree changes between two timestamps within a page.
+5. **`fullstory:session_close`**: Always call when done to free resources.
 
 ## Workflow
 
@@ -45,9 +46,13 @@ Scan event summaries for:
 - **Custom events** — application-specific telemetry
 
 ### 3. Visual Inspection
-At each key moment:
+At each key moment, use `fullstory:session_screenshot` to see what the user saw:
 ```
-fullstory:session_view(client_id="<id>", page_id="<page>", timestamp=<ms>)
+fullstory:session_screenshot(client_id="<id>", page_id="<page>", timestamp=<ms>)
+```
+Use `fullstory:session_get_a11y_tree` when you need element structure (roles, labels, hierarchy):
+```
+fullstory:session_get_a11y_tree(client_id="<id>", page_id="<page>", timestamp=<ms>)
 ```
 Check for:
 - Layout correctness (elements positioned properly)
@@ -60,7 +65,7 @@ For before/after analysis:
 ```
 fullstory:session_diff(client_id="<id>", page_id="<page>", from_ts=<before_ms>, to_ts=<after_ms>)
 ```
-Returns screenshot with changed regions highlighted plus a text summary of component changes.
+Returns a text summary of accessibility tree changes (added, removed, modified, shown, and hidden components).
 
 ### 5. Report Findings
 Summarize what was observed:
@@ -81,7 +86,7 @@ When a user reports "the checkout button didn't work" and provides a session URL
 
 1. Call `fullstory:session_open` with the session URL
 2. Find the checkout-related events in the summaries (note the `page_id` and timestamps)
-3. Use `fullstory:session_view` to see the UI state just before the button click
+3. Use `fullstory:session_screenshot` to see the UI state just before the button click; use `fullstory:session_get_a11y_tree` if you need to inspect specific elements
 4. Use `fullstory:session_diff` to compare before/after the click attempt to see what changed (or didn't)
 5. Report findings: what the user saw, any errors, why the action may have failed
 6. Call `fullstory:session_close` to clean up
@@ -92,5 +97,5 @@ When a user reports "the checkout button didn't work" and provides a session URL
 |---------|-----|
 | Forgetting to close session | Always call `fullstory:session_close` — even on errors |
 | Random timestamp access | Use sequential increasing timestamps for faster access |
-| Skipping diff tool | `fullstory:session_diff` highlights changes automatically — much faster than comparing two `fullstory:session_view` screenshots manually |
+| Skipping diff tool | `fullstory:session_diff` summarizes accessibility tree changes automatically — faster than comparing two `fullstory:session_get_a11y_tree` outputs manually |
 | Not checking for error events | Scan event summaries for errors before visual inspection |
